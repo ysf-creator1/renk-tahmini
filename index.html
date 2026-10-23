@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Renk Tahmini</title>
+<style>
+  :root {
+    --zemin: #d6d6d2;
+    --panel: #ecece8;
+    --cizgi: #b9b9b3;
+    --yazi: #26262a;
+    --soluk: #66666c;
+    --vurgu: #2b4c7e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--zemin);
+    color: var(--yazi);
+    font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh;
+  }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  [hidden] { display: none !important; }
+
+  header {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
+    padding: 10px 16px; background: #2a2a2e; color: #f1f1ee;
+  }
+  header h1 { font-size: 18px; margin: 0; letter-spacing: .02em; }
+  .hud { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin-left: auto; font-size: 14px; }
+  .hud b { font-variant-numeric: tabular-nums; }
+  .hud .ayar { display: inline-flex; align-items: center; gap: 4px; }
+  .kucuk {
+    background: #45454b; color: #fff; border: 0; border-radius: 6px;
+    min-width: 30px; height: 30px; padding: 0 8px; font-size: 14px;
+  }
+  .kucuk:hover { background: #5a5a62; }
+
+  main { max-width: 1040px; margin: 0 auto; padding: 16px; }
+
+  .btn {
+    background: var(--vurgu); color: #fff; border: 0; border-radius: 8px;
+    padding: 10px 18px; font-weight: 600;
+  }
+  .btn:hover { filter: brightness(1.12); }
+  .btn:disabled { opacity: .45; cursor: default; filter: none; }
+  .btn.ikincil { background: #fff; color: var(--yazi); border: 1px solid var(--cizgi); }
+
+  /* ---------- Menü ---------- */
+  #menu .giris { max-width: 62ch; color: var(--soluk); margin: 4px 0 18px; }
+  .kartlar { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+  .kart { background: var(--panel); border: 1px solid var(--cizgi); border-radius: 12px; padding: 18px; }
+  .kart h2 { margin: 0 0 6px; font-size: 20px; }
+  .kart p { margin: 0 0 12px; color: var(--soluk); font-size: 14px; }
+  .kart .rekor { font-size: 14px; margin: 12px 0 0; color: var(--yazi); }
+  .dugmeler { display: flex; flex-wrap: wrap; gap: 8px; }
+  .seviyeler { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; margin-bottom: 12px; }
+  .seviyeler button {
+    aspect-ratio: 1; border: 1px solid var(--cizgi); background: #fff; border-radius: 6px;
+    font-weight: 600; padding: 0;
+  }
+  .seviyeler button.secili { background: var(--vurgu); color: #fff; border-color: var(--vurgu); }
+
+  /* ---------- Oyun ---------- */
+  #oyun { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 16px; align-items: start; }
+  @media (max-width: 760px) { #oyun { grid-template-columns: minmax(0, 1fr); } }
+  .sahne, .pano { background: var(--panel); border: 1px solid var(--cizgi); border-radius: 12px; padding: 14px; }
+
+  .duzenek { position: relative; width: 240px; height: 310px; margin: 0 auto; }
+  .makine {
+    position: absolute; left: 20px; right: 20px; top: 0; height: 34px;
+    background: linear-gradient(#5b5b63, #3a3a40); border-radius: 8px 8px 4px 4px;
+  }
+  .meme {
+    position: absolute; left: 50%; top: 34px; width: 22px; height: 14px; margin-left: -11px;
+    background: #2e2e33; border-radius: 0 0 6px 6px; border-bottom: 4px solid #888;
+  }
+  .akis {
+    position: absolute; left: 50%; top: 48px; width: 8px; height: 0;
+    transform: translateX(-50%); border-radius: 0 0 4px 4px;
+    transition: height .16s linear;
+  }
+  .akis.akiyor { height: 92px; }
+
+  .kova { position: absolute; left: 20px; top: 110px; width: 200px; height: 200px; transform-origin: 50% 60%; }
+  .govde {
+    position: absolute; left: 0; right: 0; top: 30px; height: 160px;
+    background: linear-gradient(90deg, #8d8d93, #e3e3e6 28%, #c5c5ca 55%, #77777d);
+    clip-path: polygon(0 0, 100% 0, 91% 100%, 9% 100%);
+    border-radius: 0 0 40px 40px / 0 0 16px 16px;
+  }
+  .etiket {
+    position: absolute; left: 22%; right: 22%; top: 80px; height: 60px;
+    background: #fbfbf8; border-radius: 4px; display: grid; place-items: center;
+    font-size: 12px; font-weight: 700; letter-spacing: .08em; color: #55555b; text-align: center;
+  }
+  .agiz {
+    position: absolute; left: 0; top: 0; width: 200px; height: 60px; border-radius: 50%;
+    background: #6d6d73; padding: 6px;
+  }
+  .yuzey { position: relative; width: 100%; height: 100%; border-radius: 50%; overflow: hidden; background: #f4f4f0; }
+  .leke {
+    position: absolute; border-radius: 50%; transform: translate(-50%, -50%) scale(0);
+    transition-property: transform; transition-timing-function: ease-out;
+  }
+  .kapak {
+    position: absolute; left: -5px; top: -4px; width: 210px; height: 64px; border-radius: 50%;
+    background: radial-gradient(ellipse at 40% 35%, #f0f0f2, #a9a9af 70%, #8a8a90);
+    box-shadow: 0 5px 0 #6b6b71;
+    transform: translateY(-120px) rotate(-10deg); opacity: 0;
+    transition: transform .5s ease, opacity .35s ease;
+  }
+  .kova.kapali .kapak { transform: none; opacity: 1; }
+  .kova.calkala { animation: calkala 2.4s ease-in-out; }
+  @keyframes calkala {
+    0%, 100% { transform: none; }
+    6%  { transform: translate(-9px, 3px) rotate(-9deg); }
+    12% { transform: translate(9px, -3px) rotate(9deg); }
+    18% { transform: translate(-10px, 2px) rotate(-11deg); }
+    24% { transform: translate(10px, -2px) rotate(11deg); }
+    30% { transform: translate(-10px, 3px) rotate(-12deg); }
+    36% { transform: translate(10px, -3px) rotate(12deg); }
+    42% { transform: translate(-10px, 2px) rotate(-12deg); }
+    48% { transform: translate(10px, -2px) rotate(12deg); }
+    54% { transform: translate(-9px, 3px) rotate(-11deg); }
+    60% { transform: translate(9px, -3px) rotate(11deg); }
+    66% { transform: translate(-8px, 2px) rotate(-9deg); }
+    72% { transform: translate(8px, -2px) rotate(9deg); }
+    80% { transform: translate(-5px, 1px) rotate(-5deg); }
+    88% { transform: translate(4px, -1px) rotate(4deg); }
+    94% { transform: translate(-2px, 0) rotate(-2deg); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .kova.calkala { animation-duration: .01s; }
+  }
+
+  .recete-baslik { font-size: 13px; color: var(--soluk); margin: 10px 0 6px; }
+  .recete { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; min-height: 30px; }
+  .recete li {
+    display: inline-flex; align-items: center; gap: 6px; background: #fff;
+    border: 1px solid var(--cizgi); border-radius: 999px; padding: 3px 10px 3px 4px; font-size: 13px;
+  }
+  .recete i { width: 18px; height: 18px; border-radius: 50%; border: 1px solid rgba(0,0,0,.2); }
+  .recete b { font-variant-numeric: tabular-nums; }
+
+  .durum { margin: 0 0 10px; font-weight: 600; }
+  .bekle { color: var(--soluk); padding: 40px 0; text-align: center; }
+  .onizleme {
+    height: 84px; border-radius: 10px; border: 1px solid var(--cizgi); margin-bottom: 10px;
+    background: repeating-linear-gradient(45deg, #e2e2de 0 8px, #ecece8 8px 16px);
+    display: grid; place-items: center; font-size: 13px; color: var(--soluk);
+  }
+  .kartela { display: grid; gap: 4px; background: #fff; padding: 6px; border-radius: 10px; border: 1px solid var(--cizgi); }
+  .renk {
+    aspect-ratio: 1; border: 0; padding: 0; border-radius: 4px; min-width: 0;
+    outline: 1px solid rgba(0,0,0,.12); outline-offset: -1px;
+    transition: transform .08s, opacity .25s;
+  }
+  .renk:hover { transform: scale(1.14); position: relative; z-index: 1; }
+  .renk.secili { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #111; position: relative; z-index: 2; }
+  .renk.dogru { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #0a8f3c; position: relative; z-index: 2; }
+  .renk.sonuk { opacity: .1; pointer-events: none; }
+  .kartela.kilitli .renk { pointer-events: none; }
+  .eylemler { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; align-items: center; }
+  .eylemler .bos { flex: 1; }
+
+  .sonuc { margin-bottom: 12px; }
+  .karsilastir { display: grid; grid-template-columns: 1fr 1fr; height: 96px; border-radius: 10px; overflow: hidden; border: 1px solid var(--cizgi); }
+  .karsilastir div { display: flex; align-items: flex-end; padding: 6px 8px; }
+  .karsilastir span { background: rgba(255,255,255,.85); color: #222; font-size: 12px; padding: 1px 6px; border-radius: 4px; }
+  .puan { display: flex; align-items: baseline; gap: 10px; margin-top: 8px; }
+  .puan strong { font-size: 40px; line-height: 1; font-variant-numeric: tabular-nums; }
+  .puan em { font-style: normal; font-weight: 600; }
+  .not { font-size: 13px; color: var(--soluk); margin: 6px 0 0; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Renk Tahmini</h1>
+  <div class="hud" id="hud" hidden>
+    <span id="hudMod"></span>
+    <span class="ayar" id="hudAyar" hidden>
+      <button class="kucuk" id="sevEksi" aria-label="Seviyeyi düşür">−</button>
+      <button class="kucuk" id="sevArti" aria-label="Seviyeyi yükselt">+</button>
+    </span>
+    <span>Toplam: <b id="hudToplam">0</b></span>
+    <span>Rekor: <b id="hudRekor">0</b></span>
+  </div>
+  <button class="kucuk" id="sesBtn" aria-label="Sesi aç/kapat">🔊</button>
+  <button class="kucuk" id="menuBtn" hidden>Menü</button>
+</header>
+
+<main id="menu">
+  <p class="giris">Makine beyaz boyanın içine çeşitli renklerden boya sıkar ve kovayı çalkalar.
+    Kapak açılmadan önce karteladan ortaya çıkacak rengi tahmin et. Ne kadar yakınsan o kadar puan: tam isabet 100.</p>
+  <div class="kartlar">
+    <section class="kart">
+      <h2>Bölüm modu</h2>
+      <p>100 sabit bölüm. Her 10 bölümde bir renk daha eklenir ve kartela büyür.</p>
+      <div class="dugmeler">
+        <button class="btn" id="bolumDevam">Başla</button>
+        <button class="btn ikincil" id="bolumBastan" hidden>Baştan başla</button>
+      </div>
+      <p class="rekor" id="rekorBolum"></p>
+    </section>
+    <section class="kart">
+      <h2>Sonsuz mod</h2>
+      <p>Rastgele sorular. Zorluk seç; üst üste iyi bildikçe seviye kendiliğinden artar, istersen oyun içinde − / + ile değiştir.</p>
+      <div class="seviyeler" id="seviyeler"></div>
+      <div class="dugmeler"><button class="btn" id="sonsuzBasla">Başla</button></div>
+      <p class="rekor" id="rekorSonsuz"></p>
+    </section>
+  </div>
+</main>
+
+<main id="oyun" hidden>
+  <section class="sahne">
+    <div class="duzenek">
+      <div class="makine"></div>
+      <div class="meme" id="meme"></div>
+      <div class="akis" id="akis"></div>
+      <div class="kova" id="kova">
+        <div class="govde"></div>
+        <div class="etiket">BEYAZ BAZ<br>1000 ml</div>
+        <div class="agiz"><div class="yuzey" id="yuzey"></div></div>
+        <div class="kapak"></div>
+      </div>
+    </div>
+    <div class="recete-baslik">Eklenen boyalar</div>
+    <ul class="recete" id="recete"></ul>
+  </section>
+
+  <section class="pano">
+    <p class="durum" id="durum"></p>
+    <div class="bekle" id="bekle">Kartela, kova çalkalandıktan sonra açılacak.</div>
+    <div id="tahminAlani" hidden>
+      <div class="sonuc" id="sonuc" hidden>
+        <div class="karsilastir">
+          <div id="kSecim"><span>Senin tahminin</span></div>
+          <div id="kGercek"><span>Gerçek renk</span></div>
+        </div>
+        <div class="puan"><strong id="puanSayi">0</strong><em id="puanYazi"></em></div>
+        <p class="not" id="sonucNot"></p>
+      </div>
+      <div class="onizleme" id="onizleme">Ön izleme</div>
+      <div class="kartela" id="kartela"></div>
+      <div class="eylemler">
+        <button class="btn ikincil" id="ipucuBtn">İpucu</button>
+        <span class="bos"></span>
+        <button class="btn" id="onayBtn" disabled>Onayla</button>
+        <button class="btn" id="sonrakiBtn" hidden>Sonraki</button>
+      </div>
+      <p class="not" id="ipucuNot"></p>
+    </div>
+  </section>
+</main>
+
+<script>
+//CORE-START
+const PIGMENTS = [
+  { ad: 'Kırmızı',    hex: '#d42a2a' },
+  { ad: 'Sarı',       hex: '#f5d41f' },
+  { ad: 'Mavi',       hex: '#1f4fc4' },
+  { ad: 'Yeşil',      hex: '#1f9a4a' },
+  { ad: 'Turuncu',    hex: '#f07a1a' },
+  { ad: 'Mor',        hex: '#6a2fa8' },
+  { ad: 'Macenta',    hex: '#d0258a' },
+  { ad: 'Turkuaz',    hex: '#17a9b5' },
+  { ad: 'Kahverengi', hex: '#7a4a25', guc: 0.7 },
+  { ad: 'Siyah',      hex: '#1a1a1a', guc: 0.35 },
+];
+const BAZ_ML = 1000;        // kovadaki beyaz boya
+const BOYAMA_GUCU = 2;      // pigmentin beyaza göre baskınlığı
+const BEYAZ = [0.93, 0.93, 0.90];
+const KARTELA_SAYI = [6, 12, 20, 30, 40, 50, 64, 80, 100, 120];
+const KARTELA_ARALIK = [14, 12, 10, 9, 8, 7, 6, 5, 4.5, 4];
+const GIZLI_SEVIYE = 7;     // bu seviyeden itibaren ml yazılmaz
+const PUAN_ESIK = 45;       // bu ΔE ve üzeri 0 puan
+
+function srgbToLin(v) { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }
+function linToSrgb(v) { v = v <= 0.0031308 ? v * 12.92 : 1.055 * Math.pow(v, 1 / 2.4) - 0.055; return Math.round(Math.min(1, Math.max(0, v)) * 255); }
+function hexToRgb(h) { return [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)); }
+function rgbToCss(c) { return 'rgb(' + c.join(',') + ')'; }
+
+// Kubelka-Munk: yansıma -> soğurma/saçılma oranı
+function ks(r) { r = Math.min(0.98, Math.max(0.02, r)); return (1 - r) * (1 - r) / (2 * r); }
+const BEYAZ_KS = BEYAZ.map(ks);
+PIGMENTS.forEach(p => { p.ks = hexToRgb(p.hex).map(v => ks(srgbToLin(v))); });
+
+// recete: [{p: pigment indeksi, ml}] -> [r,g,b]
+function karistir(recete) {
+  let agirlik = BAZ_ML;
+  const toplam = BEYAZ_KS.map(k => k * BAZ_ML);
+  for (const b of recete) {
+    const w = b.ml * BOYAMA_GUCU * (PIGMENTS[b.p].guc || 1);
+    agirlik += w;
+    for (let c = 0; c < 3; c++) toplam[c] += PIGMENTS[b.p].ks[c] * w;
+  }
+  return toplam.map(t => {
+    const k = t / agirlik;
+    return linToSrgb(1 + k - Math.sqrt(k * k + 2 * k));
+  });
+}
+
+function rgbToLab(c) {
+  const [r, g, b] = c.map(srgbToLin);
+  const f = t => t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116;
+  const x = f((0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047);
+  const y = f(0.2126 * r + 0.7152 * g + 0.0722 * b);
+  const z = f((0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883);
+  return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
+}
+function deltaE(a, b) { return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]); }
+function puanHesapla(fark) { return Math.max(0, Math.round(100 * (1 - fark / PUAN_ESIK))); }
+
+function rastgeleUret(tohum) {
+  let a = tohum >>> 0;
+  return function () {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function receteUret(renkSayisi, rng, adim, us) {
+  const sira = PIGMENTS.map((_, i) => i);
+  for (let i = sira.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [sira[i], sira[j]] = [sira[j], sira[i]];
+  }
+  // küçük miktarlara eğilimli dağılım: birkaç renk baskın çıkar, karışım çamurlaşmaz
+  return sira.slice(0, renkSayisi).map(p => ({
+    p, ml: adim * Math.max(1, Math.ceil(Math.pow(rng(), us) * 100 / adim)),
+  }));
+}
+
+function miktarUssu(seviye) { return 1.2 + seviye * 0.3; }
+
+// ilerleme 0..1: seviye içinde miktarların ne kadar küsuratlı olacağı
+function soruUret(seviye, rng, ilerleme) {
+  const adim = ilerleme < 0.3 ? 20 : ilerleme < 0.6 ? 10 : 5;
+  const recete = receteUret(seviye, rng, adim, miktarUssu(seviye));
+  return { seviye, recete, hedef: karistir(recete) };
+}
+
+function kartelaUret(soru, rng) {
+  const sev = soru.seviye, adet = KARTELA_SAYI[sev - 1];
+  let aralik = KARTELA_ARALIK[sev - 1];
+  const liste = [{ rgb: soru.hedef, lab: rgbToLab(soru.hedef), hedef: true }];
+  const hedefMl = soru.recete.reduce((t, b) => t + b.ml, 0);
+  let basarisiz = 0;
+  while (liste.length < adet) {
+    let recete;
+    if (rng() < 0.6) {
+      // yakın ton: aynı boyaların miktarlarını oynat, ara sıra birini değiştir
+      recete = soru.recete.map(b => ({ p: b.p, ml: b.ml * Math.exp((rng() * 2 - 1) * 1.2) }));
+      if (rng() < 0.2) recete[Math.floor(rng() * recete.length)].p = Math.floor(rng() * PIGMENTS.length);
+    } else {
+      // uzak renk: başka boyalar, ama hedefe benzer koyulukta
+      recete = receteUret(1 + Math.floor(rng() * Math.max(2, sev)), rng, 5, miktarUssu(sev));
+      const oran = hedefMl / recete.reduce((t, b) => t + b.ml, 0) * Math.exp((rng() * 2 - 1) * 0.7);
+      recete.forEach(b => { b.ml *= oran; });
+    }
+    const rgb = karistir(recete), lab = rgbToLab(rgb);
+    if (liste.every(s => deltaE(s.lab, lab) >= aralik)) {
+      liste.push({ rgb, lab, hedef: false });
+    } else if (++basarisiz % (adet * 8) === 0) {
+      aralik *= 0.85;
+    }
+  }
+  // kartela düzeni: tona göre sıralar, her sıra açıktan koyuya
+  const sutun = Math.ceil(Math.sqrt(adet * 1.5));
+  const ton = s => Math.hypot(s.lab[1], s.lab[2]) < 6 ? -9 : Math.atan2(s.lab[2], s.lab[1]);
+  liste.sort((a, b) => ton(a) - ton(b));
+  const sirali = [];
+  for (let i = 0; i < liste.length; i += sutun) {
+    sirali.push(...liste.slice(i, i + sutun).sort((a, b) => b.lab[0] - a.lab[0]));
+  }
+  return { renkler: sirali, sutun };
+}
+//CORE-END
+
+// ---------- Kayıt ----------
+const ANAHTAR = 'renkTahmini.v1';
+let kayit = { ses: true, bolum: null, rekorBolum: null, rekorSonsuz: null };
+try { Object.assign(kayit, JSON.parse(localStorage.getItem(ANAHTAR) || '{}')); } catch (e) {}
+function kaydet() { try { localStorage.setItem(ANAHTAR, JSON.stringify(kayit)); } catch (e) {} }
+
+// ---------- Ses ----------
+let ac = null;
+function sesHazir() {
+  if (!kayit.ses) return null;
+  try {
+    ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+    if (ac.state === 'suspended') ac.resume();
+    return ac;
+  } catch (e) { return null; }
+}
+function gurultu(sure, frekans, siddet, gecikme = 0) {
+  const a = sesHazir(); if (!a) return;
+  const n = Math.floor(a.sampleRate * sure), tampon = a.createBuffer(1, n, a.sampleRate);
+  const veri = tampon.getChannelData(0);
+  for (let i = 0; i < n; i++) veri[i] = Math.random() * 2 - 1;
+  const kaynak = a.createBufferSource(); kaynak.buffer = tampon;
+  const filtre = a.createBiquadFilter(); filtre.type = 'bandpass'; filtre.frequency.value = frekans;
+  const kazanc = a.createGain(), t = a.currentTime + gecikme;
+  kazanc.gain.setValueAtTime(0, t);
+  kazanc.gain.linearRampToValueAtTime(siddet, t + Math.min(0.05, sure / 3));
+  kazanc.gain.linearRampToValueAtTime(0, t + sure);
+  kaynak.connect(filtre).connect(kazanc).connect(a.destination);
+  kaynak.start(t);
+}
+function nota(frekans, sure, siddet, gecikme = 0, tur = 'sine') {
+  const a = sesHazir(); if (!a) return;
+  const o = a.createOscillator(), k = a.createGain(), t = a.currentTime + gecikme;
+  o.type = tur; o.frequency.value = frekans;
+  k.gain.setValueAtTime(siddet, t);
+  k.gain.exponentialRampToValueAtTime(0.001, t + sure);
+  o.connect(k).connect(a.destination);
+  o.start(t); o.stop(t + sure);
+}
+const ses = {
+  dok: sure => gurultu(sure, 1800, 0.12),
+  kapak: () => { nota(95, 0.2, 0.4); gurultu(0.06, 400, 0.2); },
+  calkala: () => { for (let i = 0; i < 14; i++) gurultu(0.12, i % 2 ? 420 : 620, 0.22, i * 0.16); },
+  sec: () => nota(660, 0.06, 0.08, 0, 'triangle'),
+  ipucu: () => nota(440, 0.15, 0.12, 0, 'triangle'),
+  puan: p => {
+    if (p >= 90) [523, 659, 784, 1047].forEach((f, i) => nota(f, 0.22, 0.16, i * 0.1, 'triangle'));
+    else if (p >= 60) [523, 659].forEach((f, i) => nota(f, 0.22, 0.16, i * 0.12, 'triangle'));
+    else nota(196, 0.4, 0.16, 0, 'triangle');
+  },
+};
+
+// ---------- Oyun durumu ----------
+const $ = id => document.getElementById(id);
+const bekleMs = ms => new Promise(r => setTimeout(r, ms));
+const BEYAZ_CSS = '#f4f4f0';
+const S = {
+  mod: null, seviye: 1, bolum: 1, toplam: 0, seri: 0, jeton: 0,
+  soru: null, kartela: null, secim: -1, ipucu: 0, asama: '', mlGoster: true,
+};
+let menuSeviye = 1;
+
+function bolumSeviyesi(b) { return Math.ceil(b / 10); }
+
+function hudGuncelle() {
+  $('hudMod').textContent = S.mod === 'bolum'
+    ? `Bölüm ${S.bolum}/100 · Seviye ${bolumSeviyesi(S.bolum)}`
+    : `Sonsuz · Seviye ${S.seviye}`;
+  $('hudAyar').hidden = S.mod !== 'sonsuz';
+  $('hudToplam').textContent = S.toplam;
+  const r = S.mod === 'bolum' ? (kayit.rekorBolum ? kayit.rekorBolum.toplam : 0) : (kayit.rekorSonsuz || 0);
+  $('hudRekor').textContent = r;
+}
+
+function rekorGuncelle() {
+  if (S.mod === 'bolum') {
+    const r = kayit.rekorBolum;
+    if (!r || S.toplam > r.toplam) kayit.rekorBolum = { toplam: S.toplam, bolum: S.bolum };
+  } else if (kayit.rekorSonsuz == null || S.toplam > kayit.rekorSonsuz) {
+    kayit.rekorSonsuz = S.toplam;
+  }
+  kaydet();
+}
+
+function menuGoster() {
+  S.jeton++;
+  $('oyun').hidden = true; $('hud').hidden = true; $('menuBtn').hidden = true;
+  $('menu').hidden = false;
+  const k = kayit.bolum;
+  const devam = k && k.bolum > 1 && k.bolum <= 100;
+  $('bolumDevam').textContent = devam ? `Devam et — Bölüm ${k.bolum}` : 'Başla';
+  $('bolumBastan').hidden = !devam;
+  $('rekorBolum').textContent = kayit.rekorBolum
+    ? `Rekor: ${kayit.rekorBolum.toplam} puan (bölüm ${kayit.rekorBolum.bolum})` : 'Henüz rekor yok.';
+  $('rekorSonsuz').textContent = kayit.rekorSonsuz != null
+    ? `Rekor: ${kayit.rekorSonsuz} puan` : 'Henüz rekor yok.';
+}
+
+function oyunBaslat(mod, devam) {
+  S.mod = mod; S.seri = 0;
+  if (mod === 'bolum') {
+    const k = devam && kayit.bolum;
+    S.bolum = k ? k.bolum : 1;
+    S.toplam = k ? k.toplam : 0;
+  } else {
+    S.seviye = menuSeviye; S.toplam = 0;
+  }
+  $('menu').hidden = true; $('oyun').hidden = false;
+  $('hud').hidden = false; $('menuBtn').hidden = false;
+  turBaslat();
+}
+
+function receteCiz() {
+  $('recete').innerHTML = '';
+  for (const b of S.dokulen) {
+    const li = document.createElement('li');
+    const nokta = document.createElement('i'); nokta.style.background = PIGMENTS[b.p].hex;
+    const miktar = document.createElement('b'); miktar.textContent = S.mlGoster ? `${b.ml} ml` : '? ml';
+    li.append(nokta, PIGMENTS[b.p].ad + ' ', miktar);
+    $('recete').append(li);
+  }
+}
+
+async function dok(boya) {
+  const pig = PIGMENTS[boya.p], sure = 400 + boya.ml * 15;
+  const akis = $('akis');
+  akis.style.background = pig.hex;
+  akis.style.width = (4 + boya.ml / 8) + 'px';
+  $('meme').style.borderBottomColor = pig.hex;
+  akis.classList.add('akiyor');
+  const leke = document.createElement('i');
+  leke.className = 'leke';
+  const boyut = 18 + boya.ml * 0.7;
+  leke.style.cssText = `width:${boyut}px;height:${boyut * 0.5}px;background:${pig.hex};` +
+    `left:${25 + Math.random() * 50}%;top:${30 + Math.random() * 40}%;transition-duration:${sure}ms`;
+  $('yuzey').append(leke);
+  leke.offsetWidth; // geçişin başlaması için
+  leke.style.transform = 'translate(-50%,-50%) scale(1)';
+  ses.dok(sure / 1000);
+  S.dokulen.push(boya); receteCiz();
+  await bekleMs(sure);
+  akis.classList.remove('akiyor');
+  await bekleMs(260);
+}
+
+async function turBaslat() {
+  const jeton = ++S.jeton;
+  const gecerli = () => jeton === S.jeton;
+  let rng, sev, ilerleme;
+  if (S.mod === 'bolum') {
+    rng = rastgeleUret(S.bolum * 7919 + 13);
+    sev = bolumSeviyesi(S.bolum);
+    ilerleme = ((S.bolum - 1) % 10) / 9;
+  } else {
+    rng = rastgeleUret((Math.random() * 2 ** 32) >>> 0);
+    sev = S.seviye;
+    ilerleme = rng();
+  }
+  S.soru = soruUret(sev, rng, ilerleme);
+  S.kartela = kartelaUret(S.soru, rng);
+  S.secim = -1; S.ipucu = 0; S.asama = 'dokum'; S.dokulen = [];
+  S.mlGoster = sev < GIZLI_SEVIYE;
+
+  hudGuncelle();
+  $('kova').classList.remove('kapali', 'calkala');
+  $('yuzey').innerHTML = ''; $('yuzey').style.background = BEYAZ_CSS;
+  $('meme').style.borderBottomColor = '#888';
+  $('akis').classList.remove('akiyor');
+  receteCiz();
+  $('tahminAlani').hidden = true; $('bekle').hidden = false;
+  $('durum').textContent = sev === 1 ? 'Makine 1 renk ekliyor…' : `Makine ${sev} renk ekliyor…`;
+
+  await bekleMs(600); if (!gecerli()) return;
+  for (const boya of S.soru.recete) {
+    await dok(boya); if (!gecerli()) return;
+  }
+  $('meme').style.borderBottomColor = '#888';
+  $('durum').textContent = 'Kapak kapanıyor…';
+  $('kova').classList.add('kapali'); ses.kapak();
+  await bekleMs(700); if (!gecerli()) return;
+  $('durum').textContent = 'Kova çalkalanıyor…';
+  $('kova').classList.add('calkala'); ses.calkala();
+  await bekleMs(2450); if (!gecerli()) return;
+  $('kova').classList.remove('calkala');
+  $('yuzey').innerHTML = '';
+  kartelaGoster();
+}
+
+function ipucuBedeli() { return S.toplam <= -99 ? 0 : S.soru.seviye * 5; }
+
+function ipucuYaz() {
+  const btn = $('ipucuBtn'), kalan = 3 - S.ipucu;
+  btn.disabled = kalan <= 0;
+  const bedel = ipucuBedeli();
+  btn.textContent = kalan <= 0 ? 'İpucu bitti' : bedel ? `İpucu (−${bedel} puan)` : 'İpucu (ücretsiz)';
+  $('ipucuNot').textContent = kalan > 0
+    ? `Bu turda ${kalan} ipucu hakkın var. Her ipucu uzak renklerin yarısını eler` +
+      (!S.mlGoster ? '; ilki miktarları da gösterir.' : '.')
+    : '';
+}
+
+function onizle(i) {
+  const kutu = $('onizleme');
+  if (i < 0) { kutu.style.background = ''; kutu.textContent = 'Ön izleme'; return; }
+  kutu.style.background = rgbToCss(S.kartela.renkler[i].rgb); kutu.textContent = '';
+}
+
+function kartelaGoster() {
+  S.asama = 'tahmin';
+  $('durum').textContent = 'Kapak açılınca hangi renk çıkacak?';
+  $('bekle').hidden = true; $('tahminAlani').hidden = false;
+  $('sonuc').hidden = true; $('onizleme').hidden = false;
+  $('onayBtn').hidden = false; $('onayBtn').disabled = true;
+  $('sonrakiBtn').hidden = true; $('ipucuBtn').hidden = false;
+  const kutu = $('kartela');
+  kutu.className = 'kartela';
+  kutu.style.gridTemplateColumns = `repeat(${S.kartela.sutun}, 1fr)`;
+  kutu.style.maxWidth = S.kartela.sutun * 84 + 'px';
+  kutu.innerHTML = '';
+  S.kartela.renkler.forEach((r, i) => {
+    const b = document.createElement('button');
+    b.className = 'renk'; b.dataset.i = i;
+    b.style.background = rgbToCss(r.rgb);
+    b.setAttribute('aria-label', `Renk ${i + 1}`);
+    kutu.append(b);
+  });
+  onizle(-1); ipucuYaz();
+}
+
+function sec(i) {
+  if (S.asama !== 'tahmin') return;
+  S.secim = i;
+  document.querySelectorAll('.renk.secili').forEach(e => e.classList.remove('secili'));
+  $('kartela').children[i].classList.add('secili');
+  $('onayBtn').disabled = false;
+  onizle(i); ses.sec();
+}
+
+function ipucuVer() {
+  if (S.asama !== 'tahmin' || S.ipucu >= 3) return;
+  S.toplam = Math.max(-99, S.toplam - ipucuBedeli());
+  S.ipucu++;
+  if (!S.mlGoster) { S.mlGoster = true; receteCiz(); }
+  const hedefLab = S.kartela.renkler.find(r => r.hedef).lab;
+  const kutu = $('kartela');
+  const acik = S.kartela.renkler
+    .map((r, i) => ({ i, r, fark: deltaE(r.lab, hedefLab) }))
+    .filter(x => !x.r.hedef && !x.r.sonuk)
+    .sort((a, b) => b.fark - a.fark);
+  acik.slice(0, Math.ceil(acik.length / 2)).forEach(x => {
+    x.r.sonuk = true;
+    kutu.children[x.i].classList.add('sonuk');
+    if (S.secim === x.i) {
+      S.secim = -1; kutu.children[x.i].classList.remove('secili');
+      $('onayBtn').disabled = true; onizle(-1);
+    }
+  });
+  ses.ipucu(); hudGuncelle(); ipucuYaz();
+}
+
+function onayla() {
+  if (S.asama !== 'tahmin' || S.secim < 0) return;
+  S.asama = 'sonuc';
+  const renkler = S.kartela.renkler, secilen = renkler[S.secim];
+  const hedefIdx = renkler.findIndex(r => r.hedef);
+  const fark = deltaE(secilen.lab, renkler[hedefIdx].lab);
+  const puan = secilen.hedef ? 100 : Math.min(99, puanHesapla(fark));
+  S.toplam += puan;
+
+  $('yuzey').style.background = rgbToCss(S.soru.hedef);
+  $('kova').classList.remove('kapali'); ses.kapak();
+  setTimeout(() => ses.puan(puan), 350);
+  if (!S.mlGoster) { S.mlGoster = true; receteCiz(); }
+
+  $('kartela').classList.add('kilitli');
+  $('kartela').children[hedefIdx].classList.add('dogru');
+  $('kSecim').style.background = rgbToCss(secilen.rgb);
+  $('kGercek').style.background = rgbToCss(S.soru.hedef);
+  $('puanSayi').textContent = puan;
+  $('puanYazi').textContent = puan === 100 ? 'Kusursuz!' : puan >= 90 ? 'Çok yakın!'
+    : puan >= 70 ? 'İyi tahmin' : puan >= 40 ? 'Fena değil' : 'Uzak kaldı';
+  let not = 'Doğru renk kartelada yeşil çerçeveyle işaretlendi.';
+
+  let bitti = false;
+  if (S.mod === 'bolum') {
+    rekorGuncelle();
+    if (S.bolum >= 100) { bitti = true; kayit.bolum = null; }
+    else kayit.bolum = { bolum: S.bolum + 1, toplam: S.toplam };
+    kaydet();
+    if (bitti) not = `100 bölümü tamamladın! Toplam puanın: ${S.toplam}.`;
+  } else {
+    rekorGuncelle();
+    S.seri = puan >= 85 ? S.seri + 1 : 0;
+    if (S.seri >= 3 && S.seviye < 10) {
+      S.seviye++; S.seri = 0;
+      not = `Üst üste 3 iyi tahmin: seviye ${S.seviye} oldu!`;
+    }
+  }
+  $('sonucNot').textContent = not;
+  $('durum').textContent = 'Kapak açıldı!';
+  $('sonuc').hidden = false; $('onizleme').hidden = true;
+  $('onayBtn').hidden = true; $('ipucuBtn').hidden = true; $('ipucuNot').textContent = '';
+  $('sonrakiBtn').hidden = false;
+  $('sonrakiBtn').textContent = bitti ? 'Menüye dön' : 'Sonraki';
+  S.bitti = bitti;
+  hudGuncelle();
+}
+
+function sonraki() {
+  if (S.bitti) { S.bitti = false; menuGoster(); return; }
+  if (S.mod === 'bolum') S.bolum++;
+  turBaslat();
+}
+
+function seviyeDegistir(d) {
+  const yeni = Math.min(10, Math.max(1, S.seviye + d));
+  if (yeni === S.seviye) return;
+  S.seviye = yeni; S.seri = 0;
+  hudGuncelle();
+  if (S.asama !== 'sonuc') $('durum').textContent += ` (Seviye ${yeni} sonraki turda geçerli)`;
+}
+
+// ---------- Olaylar ----------
+for (let i = 1; i <= 10; i++) {
+  const b = document.createElement('button');
+  b.textContent = i; b.dataset.sev = i;
+  if (i === menuSeviye) b.classList.add('secili');
+  $('seviyeler').append(b);
+}
+$('seviyeler').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  menuSeviye = +b.dataset.sev;
+  [...$('seviyeler').children].forEach(x => x.classList.toggle('secili', x === b));
+});
+$('bolumDevam').onclick = () => oyunBaslat('bolum', true);
+$('bolumBastan').onclick = () => { kayit.bolum = null; kaydet(); oyunBaslat('bolum', false); };
+$('sonsuzBasla').onclick = () => oyunBaslat('sonsuz');
+$('menuBtn').onclick = menuGoster;
+$('sevEksi').onclick = () => seviyeDegistir(-1);
+$('sevArti').onclick = () => seviyeDegistir(1);
+$('onayBtn').onclick = onayla;
+$('sonrakiBtn').onclick = sonraki;
+$('ipucuBtn').onclick = ipucuVer;
+$('kartela').addEventListener('click', e => {
+  const b = e.target.closest('.renk'); if (b) sec(+b.dataset.i);
+});
+$('kartela').addEventListener('pointerover', e => {
+  if (S.asama !== 'tahmin' || e.pointerType === 'touch') return;
+  const b = e.target.closest('.renk'); if (b) onizle(+b.dataset.i);
+});
+$('kartela').addEventListener('pointerleave', () => { if (S.asama === 'tahmin') onizle(S.secim); });
+function sesYaz() { $('sesBtn').textContent = kayit.ses ? '🔊' : '🔇'; }
+$('sesBtn').onclick = () => { kayit.ses = !kayit.ses; kaydet(); sesYaz(); };
+sesYaz();
+menuGoster();
+</script>
+</body>
+</html>
